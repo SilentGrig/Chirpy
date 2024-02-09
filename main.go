@@ -14,15 +14,22 @@ type apiConfig struct {
 func main() {
 	const filepathRoot = "."
 	const port = "8080"
-	apiCfg := apiConfig{0}
-	r := chi.NewRouter()
+	apiCfg := apiConfig{
+		fileserverHits: 0,
+	}
+
+	router := chi.NewRouter()
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
-	r.Handle("/app", fsHandler)
-	r.Handle("/app/*", fsHandler)
-	r.Get("/healthz", handlerHealth)
-	r.Get("/metrics", apiCfg.handlerMetrics)
-	r.HandleFunc("/reset", apiCfg.handlerReset)
-	corsMux := middlewareCors(r)
+	router.Handle("/app", fsHandler)
+	router.Handle("/app/*", fsHandler)
+
+	apiRouter := chi.NewRouter()
+	apiRouter.Get("/healthz", handlerHealth)
+	apiRouter.Get("/metrics", apiCfg.handlerMetrics)
+	apiRouter.HandleFunc("/reset", apiCfg.handlerReset)
+	router.Mount("/api/", apiRouter)
+
+	corsMux := middlewareCors(router)
 
 	server := &http.Server{
 		Addr:    "localhost:" + port,
