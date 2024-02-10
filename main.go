@@ -1,6 +1,7 @@
 package main
 
 import (
+	"html/template"
 	"log"
 	"net/http"
 
@@ -8,14 +9,14 @@ import (
 )
 
 type apiConfig struct {
-	fileserverHits int
+	FileserverHits int
 }
 
 func main() {
 	const filepathRoot = "."
 	const port = "8080"
 	apiCfg := apiConfig{
-		fileserverHits: 0,
+		FileserverHits: 0,
 	}
 
 	router := chi.NewRouter()
@@ -25,9 +26,14 @@ func main() {
 
 	apiRouter := chi.NewRouter()
 	apiRouter.Get("/healthz", handlerHealth)
-	apiRouter.Get("/metrics", apiCfg.handlerMetrics)
 	apiRouter.HandleFunc("/reset", apiCfg.handlerReset)
 	router.Mount("/api/", apiRouter)
+
+	template := template.Must(template.ParseFiles("metrics.html"))
+
+	adminRouter := chi.NewRouter()
+	adminRouter.Get("/metrics", apiCfg.handlerMetrics(template))
+	router.Mount("/admin", adminRouter)
 
 	corsMux := middlewareCors(router)
 
