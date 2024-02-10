@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
 	"log"
+	"net/http"
 )
 
 type request struct {
@@ -24,30 +24,36 @@ func handlerValidate(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&request)
 	if err != nil {
 		log.Printf("Error decoding request: %s", err)
-		w.WriteHeader(400)
-		data, err := json.Marshal(errorResponse{
-			Error: "Something went wrong",
-		})
-		if err != nil {
-			return
-		}
-		w.Write(data)
+		responseWithError(w, http.StatusBadRequest, "Couldn't decode request")
 		return
 	}
-	is_valid := len(request.Body) <= 140
-	response, err := json.Marshal(response{
-		Valid: is_valid,
+	const maxChirpLength = 140
+	if len(request.Body) > maxChirpLength {
+		responseWithError(w, http.StatusBadRequest, "Chirp is too long")
+		return
+	}
+	responseWithJson(w, http.StatusOK, response{
+		Valid: true,
 	})
+}
+
+func responseWithError(w http.ResponseWriter, status int, msg string) {
+	if status >= 500 {
+		log.Printf("Responding with %d error: %s", status, msg)
+	}
+	responseWithJson(w, status, errorResponse{
+		Error: msg,
+	})
+}
+
+func responseWithJson(w http.ResponseWriter, status int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	data, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("Error marshalling response JSON: %s", err)
+		log.Printf("Error marshalling JSON response: %s", err)
 		w.WriteHeader(500)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	status := 200
-	if !is_valid {
-		status = 400
-	}
 	w.WriteHeader(status)
-	w.Write(response)
+	w.Write(data)
 }
