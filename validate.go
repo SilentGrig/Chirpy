@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type request struct {
@@ -11,7 +12,7 @@ type request struct {
 }
 
 type response struct {
-	Valid bool `json:"valid"`
+	CleanedBody string `json:"cleaned_body"`
 }
 
 type errorResponse struct {
@@ -33,7 +34,7 @@ func handlerValidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	responseWithJson(w, http.StatusOK, response{
-		Valid: true,
+		CleanedBody: cleanChirp(request.Body),
 	})
 }
 
@@ -56,4 +57,18 @@ func responseWithJson(w http.ResponseWriter, status int, payload any) {
 	}
 	w.WriteHeader(status)
 	w.Write(data)
+}
+
+func cleanChirp(s string) string {
+	profaneWords := [3]string{"kerfuffle", "sharbert", "fornax"}
+	splitWords := strings.Split(s, " ")
+	for i, word := range splitWords {
+		lowerCasedWord := strings.ToLower(word)
+		for _, badWord := range profaneWords {
+			if lowerCasedWord == badWord {
+				splitWords[i] = "****"
+			}
+		}
+	}
+	return strings.Join(splitWords, " ")
 }
